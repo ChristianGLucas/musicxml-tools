@@ -8247,7 +8247,8 @@ lastDivisionsPerQuarter: jspb.Message.getFieldWithDefault(msg, 3, 0),
 divisionsKnown: jspb.Message.getBooleanFieldWithDefault(msg, 4, false),
 totalQuarterNotes: jspb.Message.getFloatingPointFieldWithDefault(msg, 5, 0.0),
 totalQuarterNotesReliable: jspb.Message.getBooleanFieldWithDefault(msg, 6, false),
-divisionsChangedMidPart: jspb.Message.getBooleanFieldWithDefault(msg, 7, false)
+divisionsChangedMidPart: jspb.Message.getBooleanFieldWithDefault(msg, 7, false),
+usesBackupForward: jspb.Message.getBooleanFieldWithDefault(msg, 8, false)
   };
 
   if (includeInstance) {
@@ -8311,6 +8312,10 @@ proto.christiangeorgelucas.musicxml_tools.PartDuration.deserializeBinaryFromRead
     case 7:
       var value = /** @type {boolean} */ (reader.readBool());
       msg.setDivisionsChangedMidPart(value);
+      break;
+    case 8:
+      var value = /** @type {boolean} */ (reader.readBool());
+      msg.setUsesBackupForward(value);
       break;
     default:
       reader.skipField();
@@ -8387,6 +8392,13 @@ proto.christiangeorgelucas.musicxml_tools.PartDuration.serializeBinaryToWriter =
   if (f) {
     writer.writeBool(
       7,
+      f
+    );
+  }
+  f = message.getUsesBackupForward();
+  if (f) {
+    writer.writeBool(
+      8,
       f
     );
   }
@@ -8516,6 +8528,24 @@ proto.christiangeorgelucas.musicxml_tools.PartDuration.prototype.getDivisionsCha
  */
 proto.christiangeorgelucas.musicxml_tools.PartDuration.prototype.setDivisionsChangedMidPart = function(value) {
   return jspb.Message.setProto3BooleanField(this, 7, value);
+};
+
+
+/**
+ * optional bool uses_backup_forward = 8;
+ * @return {boolean}
+ */
+proto.christiangeorgelucas.musicxml_tools.PartDuration.prototype.getUsesBackupForward = function() {
+  return /** @type {boolean} */ (jspb.Message.getBooleanFieldWithDefault(this, 8, false));
+};
+
+
+/**
+ * @param {boolean} value
+ * @return {!proto.christiangeorgelucas.musicxml_tools.PartDuration} returns this
+ */
+proto.christiangeorgelucas.musicxml_tools.PartDuration.prototype.setUsesBackupForward = function(value) {
+  return jspb.Message.setProto3BooleanField(this, 8, value);
 };
 
 

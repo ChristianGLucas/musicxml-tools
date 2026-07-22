@@ -11,6 +11,7 @@ function toPlain(p: PartDuration) {
     totalQuarterNotes: p.getTotalQuarterNotes(),
     totalQuarterNotesReliable: p.getTotalQuarterNotesReliable(),
     divisionsChangedMidPart: p.getDivisionsChangedMidPart(),
+    usesBackupForward: p.getUsesBackupForward(),
   };
 }
 
@@ -55,5 +56,39 @@ describe('ComputeDuration', () => {
     expect(p1.getTotalQuarterNotesReliable()).toBe(false);
     expect(p1.getTotalDurationDivisions()).toBe(6); // 2 + 4, in mixed-meaning divisions units
     expect(p1.getLastDivisionsPerQuarter()).toBe(4);
+  });
+
+  // REGRESSION TEST — this is the exact case an independent adversarial
+  // review found undercounted while total_quarter_notes_reliable was
+  // still (wrongly) true: voice 1 has one quarter note (duration 4);
+  // voice 2 uses <backup>/<forward> to pad the same measure to a full
+  // whole note (16 divisions) with no note of its own. The true measure
+  // length is 16, but this package's voice-sum-max approximation (which
+  // does not interpret <backup>/<forward>) only sees voice 1's 4 —
+  // uses_backup_forward must flag that gap and force reliable=false
+  // rather than silently reporting 4 as trustworthy.
+  it('sets uses_backup_forward=true and forces total_quarter_notes_reliable=false when a measure uses <backup>/<forward>', () => {
+    const xml = `<score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>X</part-name></score-part></part-list>
+      <part id="P1">
+        <measure number="1">
+          <attributes><divisions>4</divisions></attributes>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>quarter</type></note>
+          <backup><duration>4</duration></backup>
+          <forward><duration>16</duration></forward>
+        </measure>
+      </part>
+    </score-partwise>`;
+    const input = new MusicXmlInput();
+    input.setXml(xml);
+    const result = computeDuration(ctx, input);
+    const p1 = result.getPartsList()[0];
+    expect(p1.getUsesBackupForward()).toBe(true);
+    expect(p1.getTotalQuarterNotesReliable()).toBe(false);
+    expect(p1.getTotalQuarterNotes()).toBe(0);
+    // The known-approximate value is still reported (not hidden), just no
+    // longer claimed reliable — a caller who checks uses_backup_forward
+    // knows to distrust it.
+    expect(p1.getTotalDurationDivisions()).toBe(4);
   });
 });

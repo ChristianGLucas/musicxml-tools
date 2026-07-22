@@ -9,6 +9,7 @@ import {
   BoundsError,
   MusicXmlParseError,
   parseMusicXmlRoot,
+  normalizeScore,
   deriveKeyName,
   measureDurationByVoice,
   selectParts,
@@ -17,7 +18,7 @@ import {
   NormalizedScore,
   NMeasure,
 } from './lib';
-import { FIXTURE_XXE_XML, FIXTURE_BILLION_LAUGHS_XML } from './testkit';
+import { FIXTURE_XXE_XML, FIXTURE_BILLION_LAUGHS_XML, FIXTURE_PARTWISE_XML } from './testkit';
 
 describe('checkBytes', () => {
   it('passes input at or under the byte limit', () => {
@@ -143,14 +144,59 @@ describe('measureDurationByVoice', () => {
       notes: [note('1', 4), note('1', 4, true), note('2', 2), note('2', 2)],
       attributesChanges: [],
       directions: [],
+      usesBackupForward: false,
     };
     // voice 1: 4 (chord note excluded) = 4; voice 2: 2 + 2 = 4; max = 4.
     expect(measureDurationByVoice(measure)).toBe(4);
   });
 
   it('returns 0 for a measure with no notes', () => {
-    const measure: NMeasure = { index: 0, number: '1', implicit: false, width: null, widthSpecified: false, notes: [], attributesChanges: [], directions: [] };
+    const measure: NMeasure = { index: 0, number: '1', implicit: false, width: null, widthSpecified: false, notes: [], attributesChanges: [], directions: [], usesBackupForward: false };
     expect(measureDurationByVoice(measure)).toBe(0);
+  });
+});
+
+describe('normalizeScore — usesBackupForward detection', () => {
+  it('is false for FIXTURE_PARTWISE_XML, which uses no <backup>/<forward>', () => {
+    const score = normalizeScore(FIXTURE_PARTWISE_XML);
+    for (const part of score.parts) {
+      for (const m of part.measures) {
+        expect(m.usesBackupForward).toBe(false);
+      }
+    }
+  });
+
+  it('is true for a measure containing <backup>, and false for a sibling measure without one', () => {
+    const xml = `<score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>X</part-name></score-part></part-list>
+      <part id="P1">
+        <measure number="1">
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>quarter</type></note>
+          <backup><duration>4</duration></backup>
+        </measure>
+        <measure number="2">
+          <note><pitch><step>D</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>quarter</type></note>
+        </measure>
+      </part>
+    </score-partwise>`;
+    const score = normalizeScore(xml);
+    const measures = score.parts[0].measures;
+    expect(measures[0].usesBackupForward).toBe(true);
+    expect(measures[1].usesBackupForward).toBe(false);
+  });
+
+  it('is true for a measure containing <forward>', () => {
+    const xml = `<score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>X</part-name></score-part></part-list>
+      <part id="P1">
+        <measure number="1">
+          <forward><duration>4</duration></forward>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><voice>1</voice><type>quarter</type></note>
+        </measure>
+      </part>
+    </score-partwise>`;
+    const score = normalizeScore(xml);
+    expect(score.parts[0].measures[0].usesBackupForward).toBe(true);
   });
 });
 
@@ -187,7 +233,7 @@ describe('selectParts / measureRange', () => {
   });
 
   it('measureRange with end<=0 is unbounded from start', () => {
-    const measures: NMeasure[] = [0, 1, 2, 3].map((i) => ({ index: i, number: String(i), implicit: false, width: null, widthSpecified: false, notes: [], attributesChanges: [], directions: [] }));
+    const measures: NMeasure[] = [0, 1, 2, 3].map((i) => ({ index: i, number: String(i), implicit: false, width: null, widthSpecified: false, notes: [], attributesChanges: [], directions: [], usesBackupForward: false }));
     expect(measureRange(measures, 2, 0).map((m) => m.index)).toEqual([2, 3]);
     expect(measureRange(measures, -5, 0).map((m) => m.index)).toEqual([0, 1, 2, 3]);
     expect(measureRange(measures, 1, 2).map((m) => m.index)).toEqual([1, 2]);

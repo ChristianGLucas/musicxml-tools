@@ -138,6 +138,8 @@ const ARRAY_TAGS = new Set([
   'tie',
   'notations',
   'dot',
+  'backup',
+  'forward',
 ]);
 
 let parserInstance: XMLParser | null = null;
@@ -375,6 +377,11 @@ export interface NMeasure {
   notes: NNote[];
   attributesChanges: NAttributesChange[];
   directions: NDirection[];
+  /** True when this measure contains a <backup> or <forward> element —
+   * the signal measureDurationByVoice's approximation cannot account for
+   * (see its comment). Used to downgrade PartDuration's reliability
+   * rather than silently under-count. */
+  usesBackupForward: boolean;
 }
 
 export interface NInstrument {
@@ -597,6 +604,7 @@ function buildMeasure(
     notes: asArray(o.note).map(parseNote),
     attributesChanges: asArray(o.attributes).map(parseAttributesEl),
     directions: asArray(o.direction).map(parseDirectionEl),
+    usesBackupForward: asArray(o.backup).length > 0 || asArray(o.forward).length > 0,
   };
 }
 

@@ -322,12 +322,19 @@ message ExtractInstrumentsResult {
   string error = 4;
 }
 
-// One part's total notated duration, computed by walking <note>/<forward>/
-// <backup> in document order per measure and taking, for each measure, the
-// furthest cursor position any voice reached (this is what makes the
-// computation correct for multi-voice parts, where <backup> rewinds the
-// cursor so a second voice can be written after the first) — then summing
-// that per-measure length across the part.
+// One part's total notated duration, computed per measure by grouping
+// that measure's notes by <voice> (a chord note is excluded, since
+// <chord/> means it sounds together with the PRECEDING note rather than
+// advancing that voice's position), summing each voice's remaining note
+// durations, and taking the MAXIMUM across voices as that measure's
+// length — then summing measure lengths across the part. This does NOT
+// interpret <backup>/<forward> elements (the interleaved document order
+// between <note>/<backup>/<forward> is not available from this package's
+// parse layer), so a measure where a voice pads time with a bare
+// <forward> and no note in ANY voice reaches that same length is
+// under-counted by this method — uses_backup_forward flags exactly that
+// condition so a caller can tell when the numbers below may be
+// approximate rather than exact.
 message PartDuration {
   string part_id = 1;
   // Sum, in the part's own <divisions> units, which can change mid-part
@@ -339,8 +346,17 @@ message PartDuration {
   // total_duration_divisions / last_divisions_per_quarter when
   // divisions_known and constant throughout the part; 0 otherwise.
   double total_quarter_notes = 5;
+  // False whenever total_quarter_notes should not be trusted: divisions
+  // unknown, divisions changed mid-part, OR (see message comment) any
+  // measure in this part contains a <backup>/<forward> element, which
+  // this package's duration approximation cannot account for.
   bool total_quarter_notes_reliable = 6;
   bool divisions_changed_mid_part = 7;
+  // True when any measure in this part contains a <backup> or <forward>
+  // element — the known gap in this node's duration approximation (see
+  // the message comment above). When true, total_duration_divisions and
+  // total_quarter_notes may under-count.
+  bool uses_backup_forward = 8;
 }
 
 message ComputeDurationResult {

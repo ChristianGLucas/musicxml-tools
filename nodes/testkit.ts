@@ -404,5 +404,5 @@ export const ORACLE_NOTES_P1 = [
   { partId: 'P1', measureIndex: 1, measureNumber: '2', isRest: false, isUnpitched: false, pitch: { step: 'B', alter: 0, alterSpecified: false, octave: 3 }, duration: 0, type: '16th', dots: 0, voice: '1', staff: 1, staffSpecified: true, tieStart: false, tieStop: false, chord: false, grace: true },
 ];
 
-export const ORACLE_DURATION_P1 = { partId: 'P1', totalDurationDivisions: 16, lastDivisionsPerQuarter: 4, divisionsKnown: true, totalQuarterNotes: 4, totalQuarterNotesReliable: true, divisionsChangedMidPart: false };
-export const ORACLE_DURATION_P2 = { partId: 'P2', totalDurationDivisions: 32, lastDivisionsPerQuarter: 4, divisionsKnown: true, totalQuarterNotes: 8, totalQuarterNotesReliable: true, divisionsChangedMidPart: false };
+export const ORACLE_DURATION_P1 = { partId: 'P1', totalDurationDivisions: 16, lastDivisionsPerQuarter: 4, divisionsKnown: true, totalQuarterNotes: 4, totalQuarterNotesReliable: true, divisionsChangedMidPart: false, usesBackupForward: false };
+export const ORACLE_DURATION_P2 = { partId: 'P2', totalDurationDivisions: 32, lastDivisionsPerQuarter: 4, divisionsKnown: true, totalQuarterNotes: 8, totalQuarterNotesReliable: true, divisionsChangedMidPart: false, usesBackupForward: false };

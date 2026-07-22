@@ -1055,6 +1055,9 @@ export class PartDuration extends jspb.Message {
   getDivisionsChangedMidPart(): boolean;
   setDivisionsChangedMidPart(value: boolean): void;
 
+  getUsesBackupForward(): boolean;
+  setUsesBackupForward(value: boolean): void;
+
   serializeBinary(): Uint8Array;
   toObject(includeInstance?: boolean): PartDuration.AsObject;
   static toObject(includeInstance: boolean, msg: PartDuration): PartDuration.AsObject;
@@ -1074,6 +1077,7 @@ export namespace PartDuration {
     totalQuarterNotes: number,
     totalQuarterNotesReliable: boolean,
     divisionsChangedMidPart: boolean,
+    usesBackupForward: boolean,
   }
 }
 
