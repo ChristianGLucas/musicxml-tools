@@ -1,0 +1,73 @@
+name: christiangeorgelucas/musicxml-tools
+version: 0.1.0
+language: typescript
+description: 'Deterministic parsing and structural inspection of MusicXML sheet-music files (score-partwise and score-timewise): metadata, parts, measures, notes, time/key signatures, clefs, tempo, lyrics, dynamics, and structural validation. Wraps fast-xml-parser (MIT) with XXE disabled.'
+nodes:
+    - name: DetectMusicXml
+      description: Detect whether text is MusicXML and which root form it uses (score-partwise or score-timewise).
+      input: MusicXmlInput
+      output: DetectResult
+    - name: ParseScore
+      description: 'Parse a MusicXML score into a normalized structure: title, composer, and each part with its measure count.'
+      input: MusicXmlInput
+      output: ParsedScore
+    - name: ExtractMetadata
+      description: Extract work/movement titles, creators (composer, arranger, etc.), rights, and encoding info from work/identification.
+      input: MusicXmlInput
+      output: ScoreMetadata
+    - name: ListParts
+      description: 'List the parts declared in part-list: id, name, abbreviation, and instrument count.'
+      input: MusicXmlInput
+      output: ListPartsResult
+    - name: ExtractMeasures
+      description: 'Extract a part''s measures: index, number, implicit/width, note and rest counts, and whether attributes change there.'
+      input: MusicXmlPartQuery
+      output: ExtractMeasuresResult
+    - name: ExtractNotes
+      description: 'Extract the notes of a part as a structured array: pitch, duration, type, voice, rest/tie/dot/chord/grace flags.'
+      input: MusicXmlPartQuery
+      output: ExtractNotesResult
+    - name: ExtractTimeSignatures
+      description: Extract time signature changes (beats/beat-type) and the measure where each one starts.
+      input: MusicXmlPartQuery
+      output: ExtractTimeSignaturesResult
+    - name: ExtractKeySignatures
+      description: Extract key signature changes (fifths/mode, plus a derived key name) and the measure where each one starts.
+      input: MusicXmlPartQuery
+      output: ExtractKeySignaturesResult
+    - name: ExtractClefs
+      description: Extract clef changes per part and the measure where each one starts.
+      input: MusicXmlPartQuery
+      output: ExtractClefsResult
+    - name: ExtractTempo
+      description: Extract tempo markings from direction/sound tempo and metronome marks.
+      input: MusicXmlPartQuery
+      output: ExtractTempoResult
+    - name: ExtractLyrics
+      description: Extract lyric syllables of a part, aligned to their note position within each measure.
+      input: MusicXmlPartQuery
+      output: ExtractLyricsResult
+    - name: SummarizeParts
+      description: Summarize each part's measure, note, and rest counts in one call.
+      input: MusicXmlInput
+      output: SummarizePartsResult
+    - name: ExtractInstruments
+      description: Extract the score-instrument declarations per part (id, name, abbreviation, sound) plus total part and instrument counts.
+      input: MusicXmlInput
+      output: ExtractInstrumentsResult
+    - name: ComputeDuration
+      description: Compute each part's total notated duration in divisions and (when reliable) quarter notes.
+      input: MusicXmlInput
+      output: ComputeDurationResult
+    - name: ExtractDynamicsArticulations
+      description: Extract dynamics markings (direction/dynamics) and note articulations/technical markings (notations).
+      input: MusicXmlPartQuery
+      output: ExtractDynamicsArticulationsResult
+    - name: ExtractTransposition
+      description: Extract transpose-info (concert vs written pitch) per part from attributes/transpose.
+      input: MusicXmlPartQuery
+      output: ExtractTranspositionResult
+    - name: ValidateStructure
+      description: 'Validate basic MusicXML structural correctness: recognized root, and part-list matching the actual parts.'
+      input: MusicXmlInput
+      output: ValidateStructureResult

@@ -1,0 +1,195 @@
+// Direct unit tests for lib.ts's exported bounds/parsing/musical helpers —
+// tested here at small scale (custom max values) rather than only through
+// a multi-MB fixture at the real MAX_XML_BYTES/MAX_XML_DEPTH ceilings,
+// which would be slow and add nothing checkBytes/checkDepth's own logic
+// doesn't already prove at a tiny scale.
+import {
+  checkBytes,
+  checkDepth,
+  BoundsError,
+  MusicXmlParseError,
+  parseMusicXmlRoot,
+  deriveKeyName,
+  measureDurationByVoice,
+  selectParts,
+  measureRange,
+  MAX_XML_BYTES,
+  NormalizedScore,
+  NMeasure,
+} from './lib';
+import { FIXTURE_XXE_XML, FIXTURE_BILLION_LAUGHS_XML } from './testkit';
+
+describe('checkBytes', () => {
+  it('passes input at or under the byte limit', () => {
+    expect(() => checkBytes('abc', 'field', 3)).not.toThrow();
+  });
+
+  it('throws BoundsError for input over the byte limit', () => {
+    expect(() => checkBytes('abcd', 'field', 3)).toThrow(BoundsError);
+  });
+
+  it('measures UTF-8 bytes, not JS string length (a multi-byte character counts as more than 1)', () => {
+    // '中' is 3 bytes in UTF-8 but length 1 in JS.
+    expect(() => checkBytes('中', 'field', 2)).toThrow(BoundsError);
+    expect(() => checkBytes('中', 'field', 3)).not.toThrow();
+  });
+});
+
+describe('checkDepth', () => {
+  it('passes shallow XML', () => {
+    expect(() => checkDepth('<a><b><c/></b></a>', 3)).not.toThrow();
+  });
+
+  it('throws BoundsError for XML nested deeper than the limit', () => {
+    const deep = '<a>'.repeat(10) + 'x' + '</a>'.repeat(10);
+    expect(() => checkDepth(deep, 5)).toThrow(BoundsError);
+  });
+
+  it('does not count self-closing tags as adding depth', () => {
+    expect(() => checkDepth('<a><b/><b/><b/></a>', 2)).not.toThrow();
+  });
+});
+
+describe('parseMusicXmlRoot — XML safety', () => {
+  // SECURITY ORACLE, at the lib level (below any node's try/catch): a
+  // DOCTYPE declaring a SYSTEM external entity must never be resolved.
+  // fast-xml-parser@4.5.7 throws "External entities are not supported"
+  // when it encounters one (verified directly against the installed
+  // dependency before writing this test) — parseMusicXmlRoot must turn
+  // that into a MusicXmlParseError, never let it escape as some other
+  // exception type, and never return a root object containing resolved
+  // file content.
+  it('throws MusicXmlParseError (never resolves the entity) for an XXE payload', () => {
+    expect(() => parseMusicXmlRoot(FIXTURE_XXE_XML)).toThrow(MusicXmlParseError);
+  });
+
+  it('parses a billion-laughs DOCTYPE without expanding the entity (proves no exponential blowup)', () => {
+    const { root } = parseMusicXmlRoot(FIXTURE_BILLION_LAUGHS_XML);
+    const work = root.work as Record<string, unknown>;
+    expect(work['work-title']).toBe('&lol2;');
+  });
+
+  it('throws MusicXmlParseError for a root that is neither score-partwise nor score-timewise', () => {
+    expect(() => parseMusicXmlRoot('<catalog><book/></catalog>')).toThrow(MusicXmlParseError);
+  });
+
+  it('parses a small valid document fine', () => {
+    expect(() => parseMusicXmlRoot('<score-partwise version="4.0"/>', 'xml')).not.toThrow();
+  });
+
+  it('throws BoundsError for input over MAX_XML_BYTES, before attempting to parse', () => {
+    // A real oversized document, not a mocked bound — proves the actual
+    // ceiling this package ships with, not just checkBytes' own logic.
+    const oversized = `<score-partwise version="4.0"><!--${'x'.repeat(MAX_XML_BYTES)}--></score-partwise>`;
+    expect(() => parseMusicXmlRoot(oversized, 'xml')).toThrow(BoundsError);
+  });
+});
+
+describe('deriveKeyName', () => {
+  // INDEPENDENT ORACLE: every value below is standard circle-of-fifths
+  // music theory, independent of this package's own key-signature
+  // extraction code.
+  it.each([
+    [0, '', 'C major'],
+    [2, '', 'D major'],
+    [-3, '', 'Eb major'],
+    [7, '', 'C# major'],
+    [-7, '', 'Cb major'],
+    [0, 'minor', 'A minor'],
+    [-3, 'minor', 'C minor'],
+    [3, 'minor', 'F# minor'],
+  ])('fifths=%p mode=%p -> %p', (fifths, mode, expected) => {
+    expect(deriveKeyName(fifths as number, mode as string)).toBe(expected);
+  });
+
+  it('returns empty for fifths outside the standard -7..7 range', () => {
+    expect(deriveKeyName(8, '')).toBe('');
+    expect(deriveKeyName(-8, '')).toBe('');
+  });
+
+  it('returns empty for a church mode (no relative-major/minor tonic convention)', () => {
+    expect(deriveKeyName(0, 'dorian')).toBe('');
+  });
+});
+
+function note(voice: string, duration: number, chord = false): NMeasure['notes'][number] {
+  return {
+    isRest: false,
+    isUnpitched: false,
+    pitch: null,
+    duration,
+    type: '',
+    dots: 0,
+    voice,
+    staff: 0,
+    staffSpecified: false,
+    tieStart: false,
+    tieStop: false,
+    chord,
+    grace: false,
+    lyrics: [],
+    articulationTypes: [],
+  };
+}
+
+describe('measureDurationByVoice', () => {
+  it('takes the max across voices, excluding chord notes from the sum', () => {
+    const measure: NMeasure = {
+      index: 0,
+      number: '1',
+      implicit: false,
+      width: null,
+      widthSpecified: false,
+      notes: [note('1', 4), note('1', 4, true), note('2', 2), note('2', 2)],
+      attributesChanges: [],
+      directions: [],
+    };
+    // voice 1: 4 (chord note excluded) = 4; voice 2: 2 + 2 = 4; max = 4.
+    expect(measureDurationByVoice(measure)).toBe(4);
+  });
+
+  it('returns 0 for a measure with no notes', () => {
+    const measure: NMeasure = { index: 0, number: '1', implicit: false, width: null, widthSpecified: false, notes: [], attributesChanges: [], directions: [] };
+    expect(measureDurationByVoice(measure)).toBe(0);
+  });
+});
+
+describe('selectParts / measureRange', () => {
+  const score: NormalizedScore = {
+    form: 'score-partwise',
+    version: '4.0',
+    workTitle: '',
+    workNumber: '',
+    movementTitle: '',
+    movementNumber: '',
+    creators: [],
+    rights: '',
+    encodingSoftware: [],
+    encodingDates: [],
+    source: '',
+    declaredPartIds: ['A', 'B'],
+    parts: [
+      { id: 'A', name: '', abbreviation: '', instruments: [], measures: [], undeclared: false },
+      { id: 'B', name: '', abbreviation: '', instruments: [], measures: [], undeclared: false },
+    ],
+  };
+
+  it('empty part_id selects every part', () => {
+    expect(selectParts(score, '').map((p) => p.id)).toEqual(['A', 'B']);
+  });
+
+  it('a specific part_id selects just that part', () => {
+    expect(selectParts(score, 'B').map((p) => p.id)).toEqual(['B']);
+  });
+
+  it('an unknown part_id selects nothing', () => {
+    expect(selectParts(score, 'ZZZ')).toEqual([]);
+  });
+
+  it('measureRange with end<=0 is unbounded from start', () => {
+    const measures: NMeasure[] = [0, 1, 2, 3].map((i) => ({ index: i, number: String(i), implicit: false, width: null, widthSpecified: false, notes: [], attributesChanges: [], directions: [] }));
+    expect(measureRange(measures, 2, 0).map((m) => m.index)).toEqual([2, 3]);
+    expect(measureRange(measures, -5, 0).map((m) => m.index)).toEqual([0, 1, 2, 3]);
+    expect(measureRange(measures, 1, 2).map((m) => m.index)).toEqual([1, 2]);
+  });
+});
