@@ -3,7 +3,7 @@
 Deterministic parsing and structural inspection of **MusicXML** — the
 standard XML interchange format for Western sheet-music notation (used by
 MuseScore, Finale, Sibelius, and most other notation software) — built for
-the [Axiom](https://axiom.co) marketplace, handle `christiangeorgelucas`.
+the [Axiom](https://axiomide.com) marketplace, handle `christiangeorgelucas`.
 
 This is deliberately distinct from generic XML parsing (see
 [`xpath-tools`](https://github.com/ChristianGLucas/xpath-tools)/
