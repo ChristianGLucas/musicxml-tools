@@ -26,25 +26,16 @@
 // inline ENTITY declarations (the common, historical form real MusicXML
 // files carry, e.g. the Recordare MusicXML DTD reference) parses fine and
 // triggers no network access — fast-xml-parser never fetches the
-// referenced DTD. We still: reject oversized input before parsing at all,
-// and pre-scan nesting depth with a lightweight tag counter (fast-xml-
-// parser's own parse is recursive-descent, so a native stack overflow from
-// pathologically deep input is a crash we must prevent, not just catch).
+// referenced DTD. We still pre-scan nesting depth with a lightweight tag
+// counter (fast-xml-parser's own parse is recursive-descent, so a native
+// stack overflow from pathologically deep input is a crash we must
+// prevent, not just catch).
 
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 
 // ---------------------------------------------------------------------------
 // Bounds
 // ---------------------------------------------------------------------------
-
-/** Ceiling for a whole MusicXML document's raw text. 3 MB — comfortably
- * under the ~4 MiB Axiom transport cap even after part of it is echoed
- * back in an output field, and far beyond any real hand- or software-
- * generated score (a large orchestral score is typically a few hundred KB
- * to low single-digit MB uncompressed). This package never decompresses a
- * .mxl (zip) container — callers must supply already-uncompressed XML
- * text — so there is no separate decompression-bomb surface to bound. */
-export const MAX_XML_BYTES = 3_000_000;
 
 /** Ceiling on XML element nesting depth, checked BEFORE the real parse
  * with a cheap linear tag scan. Real MusicXML rarely nests past ~15-20
@@ -56,9 +47,8 @@ export const MAX_XML_BYTES = 3_000_000;
 export const MAX_XML_DEPTH = 200;
 
 /** Cap on the number of MeasureInfo rows ExtractMeasures returns in one
- * call. Bounds response size independent of MAX_XML_BYTES (many parts times
- * many measures can still add up); a truncated response is flagged, never
- * silently incomplete. */
+ * call (many parts times many measures can still add up); a truncated
+ * response is flagged, never silently incomplete. */
 export const MAX_MEASURES_OUTPUT = 5000;
 
 /** Cap on the number of NoteInfo rows ExtractNotes returns in one call,
@@ -67,13 +57,6 @@ export const MAX_NOTES_OUTPUT = 20_000;
 
 export class BoundsError extends Error {}
 export class MusicXmlParseError extends Error {}
-
-/** Rejects oversized input (by UTF-8 byte length, not JS string length). */
-export function checkBytes(value: string, field: string, max: number): void {
-  if (Buffer.byteLength(value, 'utf8') > max) {
-    throw new BoundsError(`${field} exceeds ${max} bytes`);
-  }
-}
 
 /** Cheap linear scan for XML tag nesting depth, independent of
  * fast-xml-parser's own (recursive) traversal. Not a full XML tokenizer —
@@ -181,15 +164,13 @@ function checkWellFormed(xml: string): void {
 }
 
 /** Parses MusicXML text into a root object identified as score-partwise or
- * score-timewise. Bounds byte size and nesting depth, and checks well-
- * formedness, before parsing. Throws BoundsError for a size/depth
- * violation, MusicXmlParseError for malformed XML or a document that
- * isn't one of the two recognized MusicXML root forms. Never throws a
- * native/unrecoverable error — any fast-xml-parser exception (including
- * its own "external entities are not supported" rejection) is caught and
- * re-thrown as MusicXmlParseError. */
+ * score-timewise. Bounds nesting depth and checks well-formedness, before
+ * parsing. Throws BoundsError for a depth violation, MusicXmlParseError for
+ * malformed XML or a document that isn't one of the two recognized
+ * MusicXML root forms. Never throws a native/unrecoverable error — any
+ * fast-xml-parser exception (including its own "external entities are not
+ * supported" rejection) is caught and re-thrown as MusicXmlParseError. */
 export function parseMusicXmlRoot(xml: string, field = 'xml'): ParsedRoot {
-  checkBytes(xml, field, MAX_XML_BYTES);
   checkDepth(xml, MAX_XML_DEPTH);
   checkWellFormed(xml);
   let parsed: Record<string, unknown>;
@@ -211,7 +192,6 @@ export function parseMusicXmlRoot(xml: string, field = 'xml'): ParsedRoot {
  * report is_music_xml=false rather than error for non-MusicXML input. */
 export function detectMusicXml(xml: string): { isMusicXml: boolean; form: string; version: string; error: string } {
   try {
-    checkBytes(xml, 'xml', MAX_XML_BYTES);
     checkDepth(xml, MAX_XML_DEPTH);
   } catch (e) {
     return { isMusicXml: false, form: '', version: '', error: errorMessage(e, 'detecting MusicXML') };

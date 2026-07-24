@@ -1,5 +1,5 @@
 name: christiangeorgelucas/musicxml-tools
-version: 0.1.0
+version: 0.2.0
 language: typescript
 description: 'Deterministic parsing and structural inspection of MusicXML sheet-music files (score-partwise and score-timewise): metadata, parts, measures, notes, time/key signatures, clefs, tempo, lyrics, dynamics, and structural validation. Wraps fast-xml-parser (MIT) with XXE disabled.'
 nodes:

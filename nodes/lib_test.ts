@@ -1,10 +1,9 @@
 // Direct unit tests for lib.ts's exported bounds/parsing/musical helpers —
 // tested here at small scale (custom max values) rather than only through
-// a multi-MB fixture at the real MAX_XML_BYTES/MAX_XML_DEPTH ceilings,
-// which would be slow and add nothing checkBytes/checkDepth's own logic
-// doesn't already prove at a tiny scale.
+// a multi-MB fixture at the real MAX_XML_DEPTH ceiling, which would be
+// slow and add nothing checkDepth's own logic doesn't already prove at a
+// tiny scale.
 import {
-  checkBytes,
   checkDepth,
   BoundsError,
   MusicXmlParseError,
@@ -14,27 +13,10 @@ import {
   measureDurationByVoice,
   selectParts,
   measureRange,
-  MAX_XML_BYTES,
   NormalizedScore,
   NMeasure,
 } from './lib';
 import { FIXTURE_XXE_XML, FIXTURE_BILLION_LAUGHS_XML, FIXTURE_PARTWISE_XML } from './testkit';
-
-describe('checkBytes', () => {
-  it('passes input at or under the byte limit', () => {
-    expect(() => checkBytes('abc', 'field', 3)).not.toThrow();
-  });
-
-  it('throws BoundsError for input over the byte limit', () => {
-    expect(() => checkBytes('abcd', 'field', 3)).toThrow(BoundsError);
-  });
-
-  it('measures UTF-8 bytes, not JS string length (a multi-byte character counts as more than 1)', () => {
-    // '中' is 3 bytes in UTF-8 but length 1 in JS.
-    expect(() => checkBytes('中', 'field', 2)).toThrow(BoundsError);
-    expect(() => checkBytes('中', 'field', 3)).not.toThrow();
-  });
-});
 
 describe('checkDepth', () => {
   it('passes shallow XML', () => {
@@ -78,11 +60,11 @@ describe('parseMusicXmlRoot — XML safety', () => {
     expect(() => parseMusicXmlRoot('<score-partwise version="4.0"/>', 'xml')).not.toThrow();
   });
 
-  it('throws BoundsError for input over MAX_XML_BYTES, before attempting to parse', () => {
-    // A real oversized document, not a mocked bound — proves the actual
-    // ceiling this package ships with, not just checkBytes' own logic.
-    const oversized = `<score-partwise version="4.0"><!--${'x'.repeat(MAX_XML_BYTES)}--></score-partwise>`;
-    expect(() => parseMusicXmlRoot(oversized, 'xml')).toThrow(BoundsError);
+  it('parses a large document with no crash', () => {
+    // This package no longer caps raw document size itself — the
+    // platform's ingress/transport already bounds request size.
+    const big = `<score-partwise version="4.0"><!--${'x'.repeat(500_000)}--></score-partwise>`;
+    expect(() => parseMusicXmlRoot(big, 'xml')).not.toThrow();
   });
 });
 
